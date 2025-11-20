@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Quant Terminal [Ultimate Fixed]</title>
+    
+    <!-- React Core -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+    <!-- Recharts -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.0/Recharts.min.js"></script>
+    <!-- Babel -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: { slate: { 850: '#151f32', 950: '#020617' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020617; color: #e2e8f0; }
+        /* 隐藏默认数字箭头 */
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .input-stealth { background: transparent; border: none; outline: none; width: 100%; font-family: 'JetBrains Mono', monospace; }
+        /* 动画 */
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slideDown { animation: slideDown 0.3s ease-out forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, AreaChart, Area, ReferenceDot } = window.Recharts;
+
+        // --- Icons ---
+        const Icons = {
+            ChevronDown: ({className}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
+            Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+            Trash: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+            Search: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+            Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+            Trending: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>,
+            Sliders: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>,
+            Activity: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        };
+
+        // --- UI Components ---
+        const CustomSelect = ({ value, options, onChange, className = "" }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const containerRef = useRef(null);
+            useEffect(() => {
+                const handleClickOutside = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false); };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+            const label = options.find(o => o.value === value)?.label || value;
+            return (
+                <div className={`relative ${className}`} ref={containerRef}>
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-3 text-base text-slate-200 font-medium">
+                        <span className="truncate">{label}</span><Icons.ChevronDown className={`ml-2 opacity-50 ${isOpen?'rotate-180':''}`} />
+                    </button>
+                    {isOpen && <div className="absolute z-50 w-full mt-1 bg-[#1e293b] border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto py-1">
+                        {options.map(o => (
+                            <button key={o.value} onClick={() => { onChange(o.value); setIsOpen(false); }} className={`w-full text-left px-4 py-3 text-sm flex justify-between ${value===o.value?'text-blue-400 bg-blue-900/20':'text-slate-300 hover:bg-slate-700/50'}`}>
+                                {o.label}{value===o.value && <Icons.Check />}
+                            </button>
+                        ))}
+                    </div>}
+                </div>
+            );
+        };
+
+        // 修复输入框：允许输入字符串（如"0."），解决输入小数困难的问题
+        const NumberInput = ({ value, onChange, prefix, suffix, step=1, className="", placeholder="0", color="text-white", textSize="text-lg", label="" }) => (
+            <div className={`bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 focus-within:border-blue-500 transition-all flex flex-col ${className}`}>
+                {label && <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">{label}</span>}
+                <div className="flex items-center">
+                    {prefix && <span className="text-slate-500 text-sm mr-1 font-mono select-none">{prefix}</span>}
+                    <input 
+                        type="number" 
+                        value={value} 
+                        step={step} 
+                        onChange={e => onChange(e.target.value)} // 传递原始字符串，由父组件处理
+                        className={`input-stealth ${textSize} font-medium ${color}`} 
+                        placeholder={placeholder} 
+                    />
+                    {suffix && <span className="text-slate-600 text-xs ml-1 select-none">{suffix}</span>}
+                </div>
+            </div>
+        );
+
+        const PRESETS = {
+            "CUSTOM": { name: "自定义 (Custom)", desc: "完全自由构建。", setup: p => [] },
+            "LONG_CALL": { name: "买入看涨 (Long Call)", desc: "看涨。风险有限。", setup: p => [{type:'Call', action:'Buy', strike: Math.ceil(p*1.02), price: 5.5, qty: 1, delta: 0.45, theta: -0.05, vega: 0.15, gamma: 0.02, iv: 45}] },
+            "COVERED_CALL": { name: "备兑看涨 (Covered Call)", desc: "持股收租。", setup: p => [{type:'Stock', action:'Buy', strike:0, price: p, qty: 100, delta: 1, theta:0, vega:0, gamma:0, iv: 0}, {type:'Call', action:'Sell', strike: Math.ceil(p*1.05), price: 2.5, qty: 1, delta: 0.30, theta: -0.08, vega: 0.12, gamma: 0.03, iv: 42}] },
+            "BULL_CALL_SPREAD": { name: "牛市价差 (Bull Call)", desc: "温和看涨。盈亏封顶。", setup: p => [{type:'Call', action:'Buy', strike: Math.floor(p), price: 8.0, qty: 1, delta: 0.60, theta: -0.04, vega: 0.10, gamma: 0.02, iv: 48}, {type:'Call', action:'Sell', strike: Math.ceil(p*1.05), price: 3.5, qty: 1, delta: 0.30, theta: -0.08, vega: 0.12, gamma: 0.03, iv: 46}] },
+            "STRADDLE": { name: "跨式 (Straddle)", desc: "做多波动率。", setup: p => [{type:'Call', action:'Buy', strike: Math.round(p), price: 6.0, qty: 1, delta: 0.5, theta: -0.1, vega: 0.2, gamma: 0.04, iv: 50}, {type:'Put', action:'Buy', strike: Math.round(p), price: 6.0, qty: 1, delta: -0.5, theta: -0.1, vega: 0.2, gamma: 0.04, iv: 50}] }
+        };
+
+        const App = () => {
+            const [ticker, setTicker] = useState("NVDA");
+            const [price, setPrice] = useState(145.50);
+            const [legs, setLegs] = useState([]);
+            const [preset, setPreset] = useState("BULL_CALL_SPREAD");
+            const [simPrice, setSimPrice] = useState(145.50);
+            const [showAdvanced, setShowAdvanced] = useState(false);
+            
+            // 修复：之前漏掉的变量定义
+            const [hv, setHv] = useState(35.5);
+            const [ivRank, setIvRank] = useState(42.0);
+
+            useEffect(() => loadPreset("BULL_CALL_SPREAD"), []);
+
+            const loadPreset = (key) => {
+                setPreset(key);
+                if (PRESETS[key].setup) {
+                    const newLegs = PRESETS[key].setup(price).map(l => ({ ...l, id: Math.random().toString(36).substr(2, 9), 
+                        delta: l.delta ?? 0, theta: l.theta ?? 0, vega: l.vega ?? 0, gamma: l.gamma ?? 0, iv: l.iv ?? 0
+                    }));
+                    setLegs(newLegs);
+                }
+            };
+
+            const updateLeg = (id, key, val) => {
+                setLegs(legs.map(l => l.id === id ? { ...l, [key]: val } : l));
+                setPreset("CUSTOM");
+            };
+
+            const addLeg = () => {
+                setLegs([...legs, { id: Math.random().toString(36), type: 'Call', action: 'Buy', strike: Math.round(price), price: 1.0, qty: 1, delta: 0.5, theta: -0.05, vega: 0.1, gamma: 0.02, iv: 40 }]);
+                setPreset("CUSTOM");
+            };
+
+            // 计算时确保类型转换
+            const safeFloat = (v) => {
+                const f = parseFloat(v);
+                return isNaN(f) ? 0 : f;
+            };
+
+            const calcPnL = (expPrice) => {
+                let total = 0;
+                legs.forEach(leg => {
+                    const q = safeFloat(leg.qty);
+                    if (leg.type === 'Stock') {
+                        let val = (expPrice - safeFloat(leg.price)) * q;
+                        if (leg.action === 'Sell') val = -val;
+                        total += val;
+                    } else {
+                        let s = safeFloat(leg.strike);
+                        let intrinsic = leg.type === 'Call' ? Math.max(0, expPrice - s) : Math.max(0, s - expPrice);
+                        const cost = safeFloat(leg.price) * 100 * q;
+                        const value = intrinsic * 100 * q;
+                        if (leg.action === 'Buy') total += (value - cost); else total += (cost - value);
+                    }
+                });
+                return total;
+            };
+
+            const greeks = useMemo(() => {
+                let netDelta = 0, netGamma = 0, netTheta = 0, netVega = 0;
+                legs.forEach(leg => {
+                    const sign = leg.action === 'Buy' ? 1 : -1;
+                    const q = safeFloat(leg.qty);
+                    const m = leg.type === 'Stock' ? 1 : 100;
+                    let legDelta = safeFloat(leg.delta);
+                    if (leg.type === 'Stock') legDelta = 1.0;
+                    if (leg.type === 'Put' && legDelta > 0) legDelta = -legDelta; 
+                    netDelta += (legDelta * m * q * sign);
+                    netGamma += (safeFloat(leg.gamma) * m * q * sign);
+                    netTheta += (safeFloat(leg.theta) * m * q * sign);
+                    netVega  += (safeFloat(leg.vega)  * m * q * sign);
+                });
+                return { delta: netDelta, gamma: netGamma, theta: netTheta, vega: netVega };
+            }, [legs]);
+
+            const analysis = useMemo(() => {
+                if (!legs.length) return { data: [], maxP: 0, maxL: 0, be: [] };
+                const strikes = legs.filter(l => l.type !== 'Stock').map(l => safeFloat(l.strike));
+                const pVal = safeFloat(price);
+                const center = strikes.length ? (Math.max(...strikes) + Math.min(...strikes))/2 : pVal;
+                const width = Math.max(20, (strikes.length ? Math.max(...strikes) - Math.min(...strikes) : pVal*0.1) * 1.5);
+                const start = Math.max(0, center - width);
+                const end = center + width;
+                
+                const data = [];
+                let maxP = -Infinity, maxL = Infinity, prev = null, be = [];
+                for (let p = start; p <= end; p += width/100) {
+                    const val = calcPnL(p);
+                    if (val > maxP) maxP = val; if (val < maxL) maxL = val;
+                    if (prev !== null && ((prev<0 && val>=0) || (prev>0 && val<=0))) be.push(p);
+                    data.push({ p, v: val });
+                    prev = val;
+                }
+                return { data, maxP, maxL, be };
+            }, [legs, price]);
+
+            const curPnL = calcPnL(simPrice);
+            const fmtUSD = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
+            const fmtNum = v => v.toFixed(2);
+
+            return (
+                <div className="min-h-screen pb-20 bg-[#020617] selection:bg-blue-500/30 font-sans text-slate-200">
+                    
+                    {/* Navbar */}
+                    <header className="border-b border-white/5 bg-[#0B1121]/90 backdrop-blur-xl sticky top-0 z-40">
+                        <div className="max-w-7xl mx-auto h-16 px-6 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 font-bold text-white">Q</div>
+                                <h1 className="font-bold text-lg tracking-tight text-white">Quant<span className="text-blue-400">Terminal</span></h1>
+                            </div>
+                            <div className="flex gap-3">
+                                <input className="bg-slate-800/50 border border-slate-700 rounded-full pl-4 pr-4 py-1.5 text-sm font-bold w-32 text-white uppercase text-center focus:border-blue-500 outline-none transition-all" value={ticker} onChange={e=>setTicker(e.target.value.toUpperCase())} />
+                                <div className="bg-slate-800/50 border border-slate-700 rounded-full px-4 py-1.5 flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-500">PRICE</span>
+                                    <input className="bg-transparent w-20 text-sm font-mono font-bold text-green-400 outline-none" type="number" value={price} onChange={e=>setPrice(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* Left: Strategy & Inputs */}
+                        <div className="lg:col-span-5 space-y-6">
+                            
+                            {/* Strategy Selector */}
+                            <div className="glass rounded-3xl p-1 bg-[#0f172a]">
+                                <div className="p-1">
+                                    <CustomSelect value={preset} onChange={loadPreset} options={Object.entries(PRESETS).map(([k,v])=>({value:k, label:v.name}))} />
+                                </div>
+                                
+                                <div className="px-5 pb-5 pt-2">
+                                    <div className="flex justify-between items-start mb-2 mt-2">
+                                        <h3 className="text-blue-200 font-bold text-sm">{PRESETS[preset].name}</h3>
+                                        <button 
+                                            onClick={() => setShowAdvanced(!showAdvanced)}
+                                            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all font-semibold ${showAdvanced ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/30' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+                                        >
+                                            <Icons.Sliders /> {showAdvanced ? '隐藏高级参数' : '高级参数'}
+                                        </button>
+                                    </div>
+                                    <p className="text-slate-500 text-xs leading-relaxed mb-3">{PRESETS[preset].desc}</p>
+                                    
+                                    {/* Global Advanced Params (HV / IV Rank) */}
+                                    {showAdvanced && (
+                                        <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-800 animate-slideDown">
+                                            <NumberInput label="HV (历史波动率)" value={hv} onChange={setHv} suffix="%" color="text-yellow-300" textSize="text-base" />
+                                            <NumberInput label="IV Rank (IV等级)" value={ivRank} onChange={setIvRank} suffix="%" color="text-cyan-300" textSize="text-base" />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Legs Editor */}
+                            <div className="glass rounded-3xl p-6">
+                                <div className="flex justify-between items-center mb-5">
+                                    <span className="text-xs font-bold text-slate-400 tracking-wider">组合明细 (LEGS)</span>
+                                    <button onClick={addLeg} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg shadow-lg shadow-blue-600/20 transition-transform active:scale-95"><Icons.Plus /></button>
+                                </div>
+                                <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-hide pr-1">
+                                    {legs.map(leg => (
+                                        <div key={leg.id} className="bg-[#0f172a] border border-slate-800 rounded-2xl p-5 hover:border-slate-600 transition-all shadow-sm">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <div className="flex gap-2">
+                                                    <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+                                                        {['Buy','Sell'].map(a => (
+                                                            <button key={a} onClick={()=>updateLeg(leg.id,'action',a)} className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${leg.action===a ? (a==='Buy'?'bg-green-600 text-white shadow-md':'bg-red-600 text-white shadow-md') : 'text-slate-500 hover:text-slate-300'}`}>{a}</button>
+                                                        ))}
+                                                    </div>
+                                                    <div className="w-28"><CustomSelect value={leg.type} options={[{value:'Call',label:'Call'},{value:'Put',label:'Put'},{value:'Stock',label:'Stock'}]} onChange={v=>updateLeg(leg.id,'type',v)} /></div>
+                                                </div>
+                                                <button onClick={()=>{const nl=legs.filter(l=>l.id!==leg.id);setLegs(nl);if(!nl.length)setPreset("CUSTOM")}} className="text-slate-600 hover:text-red-400 p-1.5"><Icons.Trash /></button>
+                                            </div>
+
+                                            {/* Main Inputs: Qty, Strike, Price - BIG FONT */}
+                                            <div className="grid grid-cols-3 gap-3 mb-1">
+                                                <NumberInput label="数量 QTY" value={leg.qty} onChange={v=>updateLeg(leg.id,'qty',v)} textSize="text-xl" />
+                                                <NumberInput label={leg.type==='Stock'?'价格 PRICE':'行权 STRIKE'} prefix="$" value={leg.type==='Stock'?leg.price:leg.strike} onChange={v=>updateLeg(leg.id,leg.type==='Stock'?'price':'strike',v)} textSize="text-xl" />
+                                                {leg.type!=='Stock' && <NumberInput label="权利金 PRICE" prefix="$" value={leg.price} onChange={v=>updateLeg(leg.id,'price',v)} step={0.01} textSize="text-xl" />}
+                                            </div>
+
+                                            {/* Advanced Greeks & IV Inputs */}
+                                            {showAdvanced && leg.type !== 'Stock' && (
+                                                <div className="mt-4 pt-4 border-t border-slate-800/50 animate-slideDown">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Icons.Activity /> <span className="text-[10px] font-bold text-slate-500 uppercase">Greeks & Volatility</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-5 gap-2">
+                                                        <NumberInput label="IV %" value={leg.iv} onChange={v=>updateLeg(leg.id,'iv',v)} textSize="text-sm" color="text-slate-200" />
+                                                        <NumberInput label="Δ Delta" value={leg.delta} onChange={v=>updateLeg(leg.id,'delta',v)} step={0.01} textSize="text-sm" color="text-blue-300" />
+                                                        <NumberInput label="Γ Gamma" value={leg.gamma} onChange={v=>updateLeg(leg.id,'gamma',v)} step={0.001} textSize="text-sm" color="text-purple-300" />
+                                                        <NumberInput label="Θ Theta" value={leg.theta} onChange={v=>updateLeg(leg.id,'theta',v)} step={0.01} textSize="text-sm" color="text-yellow-300" />
+                                                        <NumberInput label="ν Vega" value={leg.vega} onChange={v=>updateLeg(leg.id,'vega',v)} step={0.01} textSize="text-sm" color="text-green-300" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right: Analysis */}
+                        <div className="lg:col-span-7 space-y-6">
+                            
+                            {/* Greeks Dashboard */}
+                            {showAdvanced && (
+                                <div className="grid grid-cols-4 gap-4 animate-slideDown">
+                                    <div className="glass p-5 rounded-2xl border-l-4 border-blue-500 relative overflow-hidden group">
+                                        <div className="absolute -right-4 -top-4 opacity-5 text-blue-500 transform rotate-12 group-hover:scale-110 transition-transform"><Icons.Trending /></div>
+                                        <div className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">Net Delta</div>
+                                        <div className="text-2xl font-mono font-bold text-white">{fmtNum(greeks.delta)}</div>
+                                        <div className="text-[10px] text-slate-500 mt-1">方向敞口</div>
+                                    </div>
+                                    <div className="glass p-5 rounded-2xl border-l-4 border-purple-500 relative overflow-hidden">
+                                        <div className="text-[10px] text-purple-400 font-bold uppercase tracking-wider mb-1">Net Gamma</div>
+                                        <div className="text-2xl font-mono font-bold text-white">{fmtNum(greeks.gamma)}</div>
+                                        <div className="text-[10px] text-slate-500 mt-1">加速特性</div>
+                                    </div>
+                                    <div className="glass p-5 rounded-2xl border-l-4 border-yellow-500 relative overflow-hidden">
+                                        <div className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider mb-1">Net Theta</div>
+                                        <div className="text-2xl font-mono font-bold text-white">{fmtNum(greeks.theta)}</div>
+                                        <div className="text-[10px] text-slate-500 mt-1">每日损耗</div>
+                                    </div>
+                                    <div className="glass p-5 rounded-2xl border-l-4 border-green-500 relative overflow-hidden">
+                                        <div className="text-[10px] text-green-400 font-bold uppercase tracking-wider mb-1">Net Vega</div>
+                                        <div className="text-2xl font-mono font-bold text-white">{fmtNum(greeks.vega)}</div>
+                                        <div className="text-[10px] text-slate-500 mt-1">波动敏感</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Chart Container */}
+                            <div className="glass rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/5 flex flex-col h-[540px]">
+                                <div className="p-8 border-b border-white/5 flex justify-between items-end bg-gradient-to-r from-slate-900 to-[#0B1121]">
+                                    <div>
+                                        <div className="flex items-center gap-2 text-slate-200 font-bold mb-2 text-lg"><Icons.Trending /> 盈亏分析 (P&L Analysis)</div>
+                                        <div className="text-xs text-slate-500 font-mono bg-slate-800/50 px-3 py-1 rounded-full inline-block">
+                                            盈亏平衡点 (BE): <span className="text-yellow-400">{analysis.be.map(b => `$${b.toFixed(2)}`).join(", ") || "N/A"}</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xs font-bold text-slate-500 uppercase mb-1">模拟收益 @ ${simPrice.toFixed(2)}</div>
+                                        <div className={`text-4xl font-mono font-bold tracking-tight ${curPnL>=0?'text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]':'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.3)]'}`}>
+                                            {curPnL>0?'+':''}{fmtUSD(curPnL)}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex-grow relative bg-[#020617]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={analysis.data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="winGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22c55e" stopOpacity={0.2}/><stop offset="95%" stopColor="#22c55e" stopOpacity={0}/></linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis dataKey="p" stroke="#475569" tick={{fill:'#64748b',fontSize:12,fontFamily:'JetBrains Mono'}} tickFormatter={v=>v.toFixed(0)} axisLine={false} tickLine={false} dy={10} />
+                                            <YAxis stroke="#475569" tick={{fill:'#64748b',fontSize:12,fontFamily:'JetBrains Mono'}} tickFormatter={v=>`$${v}`} axisLine={false} tickLine={false} />
+                                            <Tooltip contentStyle={{backgroundColor:'rgba(15,23,42,0.95)',borderColor:'#334155',borderRadius:'12px',color:'#fff',boxShadow:'0 10px 30px rgba(0,0,0,0.5)'}} itemStyle={{fontFamily:'JetBrains Mono',fontSize:'14px'}} formatter={v=>[fmtUSD(v),'P&L']} labelFormatter={l=>`价格: $${l.toFixed(2)}`} />
+                                            <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} opacity={0.3} />
+                                            <Area type="monotone" dataKey="v" stroke={curPnL>=0?"#22c55e":"#ef4444"} strokeWidth={3} fill="url(#winGrad)" animationDuration={500} />
+                                            <ReferenceDot x={simPrice} y={curPnL} r={6} fill="#3b82f6" stroke="#fff" strokeWidth={2} />
+                                            {analysis.be.map((b,i)=><ReferenceLine key={i} x={b} stroke="#facc15" strokeDasharray="4 4" strokeWidth={2} />)}
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                
+                                <div className="p-6 bg-[#0B1121] border-t border-white/5">
+                                    <div className="flex justify-between text-xs font-bold text-slate-500 uppercase mb-3">
+                                        <span>模拟价格滑块</span>
+                                        <span className="text-slate-300 font-mono text-base">${simPrice.toFixed(2)}</span>
+                                    </div>
+                                    <input type="range" min={analysis.data[0]?.p||0} max={analysis.data[analysis.data.length-1]?.p||100} step="0.1" value={simPrice} onChange={e=>setSimPrice(parseFloat(e.target.value))} className="w-full h-2 bg-slate-800 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-colors" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="glass p-6 rounded-2xl text-center border-t-4 border-green-500/30">
+                                    <div className="text-xs text-slate-400 font-bold uppercase mb-2">最大盈利 (Max Profit)</div>
+                                    <div className="text-2xl font-mono font-bold text-green-400">{analysis.maxP > 100000 ? "∞" : fmtUSD(analysis.maxP)}</div>
+                                </div>
+                                <div className="glass p-6 rounded-2xl text-center border-t-4 border-red-500/30">
+                                    <div className="text-xs text-slate-400 font-bold uppercase mb-2">最大亏损 (Max Loss)</div>
+                                    <div className="text-2xl font-mono font-bold text-red-400">{analysis.maxL < -100000 ? "∞" : fmtUSD(Math.abs(analysis.maxL))}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
