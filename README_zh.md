@@ -27,7 +27,7 @@ QuantTerminal 是一款**专业级、单文件 HTML 应用**，专为期权交�
 
 ### 🛠️ 如何使用
 
-1.  下载 `Pro_Option_Terminal_Fixed.html` 文件。
+1.  下载 `index.html` 文件。
 2.  **双击**在 Chrome、Edge 或 Safari 中打开。
 3.  选择一个**策略预设**或**逐腿构建**您自己的策略。
 4.  点击 "**Advanced (高级参数)**" 输入特定的希腊字母或波动率数据。
