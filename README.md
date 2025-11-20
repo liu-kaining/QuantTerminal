@@ -53,5 +53,3 @@ This tool is for **educational and analytical purposes only**. It **does not con
 **Built for the modern quantitative trader.**
 
 ---
-
-I can provide a brief summary of the four main **Greeks** (Delta, Gamma, Theta, Vega) or explain the payoff structure of a complex strategy like the **Butterfly**. Which topic would you like to delve into?
